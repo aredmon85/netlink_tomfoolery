@@ -51,65 +51,46 @@ int main()
 		puts("Failed to bind to socket");
 	};
 
-
-	// initialize the nt_request buffer
+	/* Netlink message framing */
 	memset(&req, 0, sizeof(req));
-	// set the NETLINK header
 	req.nl.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
 	req.nl.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
 	req.nl.nlmsg_type = RTM_GETROUTE;
 
-	// set the routing message header
 	req.rt.rtm_family = AF_INET;
 	req.rt.rtm_table = RT_TABLE_MAIN;
 	memset(&dst_addr, 0, sizeof(dst_addr));
 
 	dst_addr.nl_family = AF_NETLINK;
 
-	// initialize & create the struct msghdr supplied
-	// to the sendmsg() function
 	memset(&msg, 0, sizeof(msg));
 	msg.msg_name = (void *) &dst_addr;
 	msg.msg_namelen = sizeof(dst_addr);
 
-	// place the pointer & size of the RTNETLINK
-	// message in the struct msghdr
 	iov.iov_base = (void *) &req.nl;
 	iov.iov_len = req.nl.nlmsg_len;
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 
-	// send the RTNETLINK message to kernel
 	if(sendmsg(sock, &msg, 0) < 0) {
 		puts("sendmsg() failed");
 	};
 	char *p;
 
-	// initialize the socket read buffer
 	memset(buf, 0, sizeof(buf));
 
 	p = buf;
 	bytes_received = 0;
 
-	// read from the socket until the NLMSG_DONE is
-	// returned in the type of the RTNETLINK message
-	// or if it was a monitoring socket
+	/* Read from the socket until receving message type of NLMSG_DONE */ 
 	while(1) {
 		rtn = recv(sock, p, sizeof(buf) - bytes_received, 0);
-
 		nlp = (struct nlmsghdr *) p;
-
-		if(nlp->nlmsg_type == NLMSG_DONE)
+		if(nlp->nlmsg_type == NLMSG_DONE) {
 			break;
-
-		// increment the buffer pointer to place
-		// next message
+		};
 		p += rtn;
-
-		// increment the total size by the size of
-		// the last received message
 		bytes_received += rtn;
-
 		if((src_addr.nl_groups & RTMGRP_IPV4_ROUTE) == RTMGRP_IPV4_ROUTE) {
 			break;
 		};
